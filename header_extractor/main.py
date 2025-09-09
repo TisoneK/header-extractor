@@ -47,13 +47,34 @@ class HeaderExtractor:
         if self.config['auto_create_output_dir']:
             self.output_dir.mkdir(parents=True, exist_ok=True)
     
+    def _extract_domain(self, url: str) -> str:
+        """Extract and clean domain from URL.
+        
+        Args:
+            url: The URL to extract domain from
+            
+        Returns:
+            Cleaned domain string
+        """
+        # Remove protocol and path
+        domain = url.split('//')[-1].split('/')[0]
+        
+        # Remove www. if present
+        if domain.startswith('www.'):
+            domain = domain[4:]
+            
+        # Remove port if present
+        domain = domain.split(':')[0]
+        
+        return domain
+        
     def save_to_file(self, data: dict, filename: Optional[str] = None, 
                    output_dir: Optional[Union[str, Path]] = None) -> str:
         """Save data to a JSON file in the output directory.
         
         Args:
-            data: Data to save as JSON
-            filename: Output filename. Defaults to 'headers_<timestamp>.json'
+            data: Data to save as JSON. Should contain 'url' key for filename generation.
+            filename: Output filename. If None, generates a name in format 'headers_<domain>_<date>.json'
             output_dir: Output directory. Uses config value if None.
             
         Returns:
@@ -63,8 +84,18 @@ class HeaderExtractor:
         output_dir.mkdir(parents=True, exist_ok=True)
         
         if not filename:
-            timestamp = int(time.time())
-            filename = f"headers_{timestamp}.json"
+            # Get current date and time in YYYY_MMDD_HHMM format
+            datetime_str = time.strftime("%Y_%m%d_%H%M")
+            
+            # Extract domain from URL in data or use 'unknown'
+            domain = 'unknown'
+            if isinstance(data, dict) and 'url' in data:
+                try:
+                    domain = self._extract_domain(data['url'])
+                except Exception:
+                    pass
+                    
+            filename = f"headers_{domain}_{datetime_str}.json"
         
         output_path = output_dir / filename
         
