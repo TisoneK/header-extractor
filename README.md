@@ -124,6 +124,9 @@ You can also use the tool from the command line:
 # Basic usage
 python -m header_extractor.cli https://example.com
 
+# Specify custom output directory
+python -m header_extractor.cli https://example.com --output-dir data/headers
+
 # Multiple URLs
 python -m header_extractor.cli https://example.com https://httpbin.org/headers
 
@@ -155,11 +158,13 @@ A request with only basic headers (User-Agent, Accept-Encoding, Connection) look
 
 #### Constructor
 ```python
-extractor = HeaderExtractor(timeout=10)
+extractor = HeaderExtractor(timeout=10, custom_headers=None, output_dir=None)
 ```
 
 Parameters:
 - `timeout` (int): Request timeout in seconds (default: 10)
+- `custom_headers` (dict, optional): Custom headers to include in all requests
+- `output_dir` (str or Path, optional): Custom output directory for saved files. Uses value from config if not specified.
 
 #### Methods
 
@@ -172,6 +177,43 @@ Parameters:
 
 Returns:
 - `dict`: A dictionary containing the request headers that would be sent
+
+##### set_output_dir(output_dir)
+Set a new default output directory for saving files.
+
+Parameters:
+- `output_dir` (str or Path): New output directory path
+
+Example:
+```python
+extractor = HeaderExtractor()
+extractor.set_output_dir('data/headers')  # All future saves will go here
+```
+
+##### save_to_file(data, filename=None, output_dir=None)
+Save data to a JSON file in the output directory.
+
+Parameters:
+- `data` (dict): Data to save as JSON
+- `filename` (str, optional): Output filename. If None, generates a name in format 'headers_<domain>_<date>.json'
+- `output_dir` (str or Path, optional): Output directory for this save only. Uses instance output_dir if None.
+
+Returns:
+- `str`: Path to the saved file
+
+Example:
+```python
+# Basic usage
+extractor = HeaderExtractor()
+extractor.save_to_file(data)  # Saves to default output_dir
+
+# Custom output directory for this save only
+extractor.save_to_file(data, output_dir='temp/output')
+
+# Change default output directory for all future saves
+extractor.set_output_dir('data/headers')
+extractor.save_to_file(data)  # Saves to data/headers/
+```
 
 ##### send_request_and_capture_headers(url, custom_headers=None)
 Send a request and capture both request and response headers.

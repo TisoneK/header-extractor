@@ -21,12 +21,14 @@ class HeaderExtractor:
     """A class to extract request headers sent to web pages."""
 
     def __init__(self, timeout: Optional[int] = None, 
-                 custom_headers: Optional[Dict[str, str]] = None):
+                 custom_headers: Optional[Dict[str, str]] = None,
+                 output_dir: Optional[Union[str, Path]] = None):
         """Initialize the HeaderExtractor.
         
         Args:
             timeout: Request timeout in seconds. Uses config value if None.
             custom_headers: Custom headers to use. Will override defaults.
+            output_dir: Custom output directory for saved files. Uses config value if None.
         """
         # Get current configuration
         self.config = get_config()
@@ -34,7 +36,9 @@ class HeaderExtractor:
         # Initialize session with default timeout
         self.session = requests.Session()
         self.timeout = timeout or self.config['default_timeout']
-        self.output_dir = Path(self.config['output_dir'])
+        
+        # Set output directory (use provided, then config, default to 'output')
+        self.output_dir = self._setup_output_dir(output_dir)
         
         # Set default headers from config
         self.session.headers.update(self.config['default_headers'])
@@ -44,6 +48,32 @@ class HeaderExtractor:
             self.session.headers.update(custom_headers)
         
         # Ensure output directory exists if needed
+        if self.config['auto_create_output_dir']:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+    
+    def _setup_output_dir(self, output_dir: Optional[Union[str, Path]] = None) -> Path:
+        """Setup the output directory.
+        
+        Args:
+            output_dir: Custom output directory. Uses config value if None.
+            
+        Returns:
+            Path: The output directory path
+        """
+        if output_dir is not None:
+            return Path(output_dir)
+        return Path(self.config.get('output_dir', 'output'))
+    
+    def set_output_dir(self, output_dir: Union[str, Path]) -> None:
+        """Set a new output directory.
+        
+        Args:
+            output_dir: New output directory path
+            
+        Note:
+            The directory will be created if it doesn't exist and auto_create_output_dir is True.
+        """
+        self.output_dir = Path(output_dir)
         if self.config['auto_create_output_dir']:
             self.output_dir.mkdir(parents=True, exist_ok=True)
     
@@ -75,12 +105,25 @@ class HeaderExtractor:
         Args:
             data: Data to save as JSON. Should contain 'url' key for filename generation.
             filename: Output filename. If None, generates a name in format 'headers_<domain>_<date>.json'
-            output_dir: Output directory. Uses config value if None.
+            output_dir: Output directory. Uses instance output_dir if None.
+                      Set via constructor or set_output_dir().
             
         Returns:
             Path to the saved file as a string
+            
+        Example:
+            # Basic usage
+            extractor = HeaderExtractor()  # Uses default output_dir from config
+            extractor.save_to_file(data)
+            
+            # Custom output directory (temporary for this call)
+            extractor.save_to_file(data, output_dir='custom/path')
+            
+            # Change default output directory for all future calls
+            extractor.set_output_dir('data/headers')
+            extractor.save_to_file(data)
         """
-        output_dir = Path(output_dir or self.output_dir)
+        output_dir = Path(output_dir) if output_dir is not None else self.output_dir
         output_dir.mkdir(parents=True, exist_ok=True)
         
         if not filename:

@@ -96,8 +96,14 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  # Basic usage
   header-extractor https://example.com
+  
+  # Multiple URLs
   header-extractor https://example.com https://httpbin.org/headers
+  
+  # Custom output directory
+  header-extractor https://example.com --output-dir data/headers
   header-extractor https://example.com --timeout 30
   header-extractor https://example.com --output headers.json
   header-extractor https://example.com --format inline
@@ -147,7 +153,11 @@ Examples:
         '--output',
         '-o',
         type=str,
-        help=f'Output file (default: {config["output_dir"]}/headers_<timestamp>.json)'
+        help=f'Output file path (overrides --output-dir if specified)'
+    )
+    output_group.add_argument(
+        '--output-dir',
+        help='Output directory for saved files (default: output/)'
     )
     output_group.add_argument(
         '--format',
@@ -167,6 +177,12 @@ Examples:
         '--no-response-headers',
         action='store_true',
         help='Do not include response headers in output'
+    )
+    
+    output_group.add_argument(
+        '--save-config',
+        action='store_true',
+        help='Save current configuration as default'
     )
     
     args = parser.parse_args()
@@ -190,11 +206,19 @@ Examples:
         return 1
     
     try:
-        # Create extractor with specified timeout and headers
+        # Handle output directory
+        output_dir = args.output_dir or config.get('output_dir', 'output')
+        
+        # Initialize extractor with custom timeout and output directory
         extractor = HeaderExtractor(
-            timeout=args.timeout,
-            custom_headers=config['comprehensive_headers'] if args.comprehensive else None
+            timeout=args.timeout if args.timeout != config['default_timeout'] else None,
+            custom_headers=config['comprehensive_headers'] if args.comprehensive else None,
+            output_dir=output_dir
         )
+        
+        # Update output_dir in config if --save-config is used
+        if args.save_config and args.output_dir:
+            update_config({'output_dir': args.output_dir})
         
         # Process URLs and handle output
         process_urls(
