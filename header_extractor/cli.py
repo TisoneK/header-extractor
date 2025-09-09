@@ -52,7 +52,8 @@ def process_urls(extractor: HeaderExtractor, urls: List[str],
     Args:
         extractor: Initialized HeaderExtractor instance
         urls: List of URLs to process
-        output_file: Optional file to save results
+        output_file: Optional file to save results. If not specified but output_dir is set in config,
+                    will save to a default-named file in that directory.
         output_format: Output format ('json' or 'inline')
     """
     results = []
@@ -70,11 +71,20 @@ def process_urls(extractor: HeaderExtractor, urls: List[str],
         except Exception as e:
             print(f"Error processing {url}: {str(e)}", file=sys.stderr)
     
-    # Save to file if specified
+    # Always save to file using the extractor's save_to_file method
+    # which will handle the default output directory from config
+    if not results:
+        return
+        
+    data_to_save = results[0] if len(results) == 1 else results
+    
     if output_file:
+        # Use specified output file path
         output_path = Path(output_file)
-        extractor.save_to_file(results if len(results) != 1 else results[0], 
-                             output_path.name, output_path.parent)
+        extractor.save_to_file(data_to_save, output_path.name, output_path.parent)
+    else:
+        # Save to default location in output directory
+        extractor.save_to_file(data_to_save)
 
 
 def main():
