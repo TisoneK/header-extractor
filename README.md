@@ -41,7 +41,7 @@ from header_extractor import HeaderExtractor
 extractor = HeaderExtractor()
 
 # Extract request headers that would be sent
-result = extractor.extract_request_headers("https://linebet.com")
+result = extractor.extract_request_headers("https://example.com")
 
 # Access the request headers
 request_headers = result['request_headers']
@@ -87,7 +87,7 @@ comprehensive_headers = {
 }
 
 # Extract request headers with comprehensive headers
-result = extractor.extract_request_headers("https://linebet.com", comprehensive_headers)
+result = extractor.extract_request_headers("https://example.com", comprehensive_headers)
 
 # Print the request headers that would be sent
 print("Request Headers That Would Be Sent:")
@@ -104,7 +104,7 @@ from header_extractor import HeaderExtractor
 extractor = HeaderExtractor()
 
 # Send request and capture both request and response headers
-result = extractor.send_request_and_capture_headers("https://linebet.com")
+result = extractor.send_request_and_capture_headers("https://example.com")
 
 # Access both request and response headers
 print("Request Headers Sent:")
@@ -118,26 +118,26 @@ for key, value in result['response_headers_received'].items():
 
 ## Command Line Usage
 
-You can also use the tool from the command line:
+You can also use the tool from the command line (after installation, via the `header-extractor` entrypoint):
 
 ```bash
 # Basic usage
-python -m header_extractor.cli https://example.com
+header-extractor https://example.com
 
 # Specify custom output directory
-python -m header_extractor.cli https://example.com --output-dir data/headers
+header-extractor https://example.com --output-dir data/headers
 
 # Multiple URLs
-python -m header_extractor.cli https://example.com https://httpbin.org/headers
+header-extractor https://example.com https://httpbin.org/headers
 
 # Custom timeout
-python -m header_extractor.cli https://example.com --timeout 30
+header-extractor https://example.com --timeout 30
 
 # Save to file
-python -m header_extractor.cli https://example.com --output headers.json
+header-extractor https://example.com --output headers.json
 
 # Inline format
-python -m header_extractor.cli https://example.com --format inline
+header-extractor https://example.com --format inline
 ```
 
 ## Why Comprehensive Headers Matter
@@ -151,6 +151,86 @@ Many modern websites, especially those with anti-bot measures, analyze these hea
 - **cache-control/pragma**: Cache behavior indicators
 
 A request with only basic headers (User-Agent, Accept-Encoding, Connection) looks very "programmatic" to a server and may be blocked by anti-bot systems.
+
+## Sequence-Based Header Extraction
+
+The `SequenceExtractor` class allows you to define and execute sequences of HTTP requests where each step can depend on data from previous steps.
+
+### Basic Example
+
+```python
+from header_extractor.sequence_extractor import SequenceExtractor
+
+# Create a sequence
+executor = SequenceExtractor()
+
+# Step 1: Get initial data
+executor.add_step(
+    name="get_initial_data",
+    url="https://httpbin.org/get",
+    extract={"origin_ip": "origin"}  # Extract IP from response
+)
+
+# Step 2: Send data (depends on first step)
+executor.add_step(
+    name="post_data",
+    method="POST",
+    url="https://httpbin.org/post",
+    depends_on=["get_initial_data"],
+    data=lambda ctx: {
+        "client_ip": ctx.get("origin_ip", ""),
+        "action": "test"
+    },
+    extract={"json_data": "json"}
+)
+
+# Step 3: Get headers with custom headers (depends on previous step)
+executor.add_step(
+    name="get_headers",
+    url="https://httpbin.org/headers",
+    depends_on=["post_data"],
+    headers=lambda ctx: {
+        "X-Client-IP": ctx.get("origin_ip", ""),
+        "User-Agent": "SequenceExtractor/1.0"
+    }
+)
+
+# Execute the sequence
+results = executor.execute()
+
+# Print results
+for name, result in results.items():
+    print(f"\nStep: {name}")
+    print(f"Success: {result.success}")
+    if result.error:
+        print(f"Error: {result.error}")
+    if result.data:
+        print("Extracted data:", result.data)
+```
+
+### Key Features
+
+1. **Step Dependencies**: Steps can depend on the successful completion of previous steps
+2. **Data Extraction**: Extract data from responses and use it in subsequent requests
+3. **Conditional Execution**: Skip steps based on conditions
+4. **Retry Logic**: Automatic retries for failed requests
+5. **Context Management**: Share data between steps using a context dictionary
+6. **Error Handling**: Graceful handling of failures with detailed error information
+
+### Step Configuration
+
+Each step can be configured with the following parameters:
+
+- `name`: Unique identifier for the step
+- `url`: The URL to request
+- `method`: HTTP method (default: "GET")
+- `headers`: Headers to include in the request (can be a dict or callable)
+- `data`: Request body data (can be a dict or callable)
+- `depends_on`: List of step names that must complete successfully first
+- `condition`: Callable that receives context and returns whether to execute
+- `extract`: Dict of {name: path} to extract data from response
+- `max_retries`: Maximum number of retry attempts (default: 1)
+- `delay`: Delay in seconds before executing this step (default: 0)
 
 ## API Reference
 
